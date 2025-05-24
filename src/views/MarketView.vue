@@ -96,6 +96,10 @@
               <div class="header-cell" style="width: 100px;">最低</div>
               <div class="header-cell" style="width: 100px;">成交量</div>
               <div class="header-cell" style="width: 120px;">成交额</div>
+              <div class="header-cell" style="width: 100px;">持仓量</div>
+              <div class="header-cell" style="width: 80px;">买一价</div>
+              <div class="header-cell" style="width: 80px;">卖一价</div>
+              <div class="header-cell" style="width: 100px;">更新时间</div>
             </div>
 
             <!-- 虚拟滚动容器 -->
@@ -142,6 +146,14 @@
                   <div class="table-cell" style="width: 100px;">{{ formatPrice(item.low) }}</div>
                   <div class="table-cell" style="width: 100px;">{{ formatVolume(item.volume) }}</div>
                   <div class="table-cell" style="width: 120px;">{{ formatAmount(item.amount) }}</div>
+                  <div class="table-cell" style="width: 100px;">{{ formatVolume(item.openInterest) }}</div>
+                  <div class="table-cell" style="width: 80px;">
+                    <span class="bid-price">{{ formatPrice(item.bidPrice1) }}</span>
+                  </div>
+                  <div class="table-cell" style="width: 80px;">
+                    <span class="ask-price">{{ formatPrice(item.askPrice1) }}</span>
+                  </div>
+                  <div class="table-cell" style="width: 100px;">{{ item.updateTime || '--' }}</div>
                 </div>
               </div>
             </div>
@@ -287,6 +299,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
+import { queryAPI } from '@/services/api'
+import wsService from '@/services/websocket'
 
 export default {
   name: 'MarketView',
@@ -390,6 +404,9 @@ export default {
     // 清理资源
     onUnmounted(() => {
       window.removeEventListener('resize', updateTableHeight)
+      // 清理WebSocket监听器
+      wsService.off('market_data', updateMarketDataInTable)
+      console.log('WebSocket监听器已清理')
     })
 
     // 生成大量模拟数据
@@ -497,10 +514,163 @@ export default {
     // 初始化
     onMounted(async () => {
       try {
-        // 生成大量模拟数据
-        futuresList.value = generateMockData()
+        // 获取合约列表
+        await store.dispatch('fetchContracts')
+        futuresList.value = store.state.contracts
 
-        // 初始化投资者资金信息
+        // 如果没有从API获取到合约，使用模拟数据
+        if (futuresList.value.length === 0) {
+          futuresList.value = generateMockData()
+        }
+
+        // 获取资金信息
+        try {
+          await store.dispatch('fetchFunds')
+          fundInfo.value = store.state.funds
+        } catch (error) {
+          console.warn('获取资金信息失败，使用模拟数据:', error)
+          // 使用模拟资金信息
+          fundInfo.value = {
+            available: 1000000,
+            frozen: 50000,
+            total: 1050000,
+            profit: 25000,
+            riskRatio: 0.15
+          }
+        }
+
+        // 获取交易数据
+        try {
+          await Promise.all([
+            store.dispatch('fetchOrders'),
+            store.dispatch('fetchPositions')
+          ])
+
+          ordersList.value = store.state.orders
+          positionsList.value = store.state.positions
+          tradesList.value = store.state.trades
+        } catch (error) {
+          console.warn('获取交易数据失败，使用模拟数据:', error)
+          // 使用模拟数据
+          tradesList.value = [
+            { time: '09:30:15', symbol: 'CU2401', direction: 'buy', price: '68500', quantity: '10', amount: '685000', status: '已成交' },
+            { time: '09:31:22', symbol: 'AL2401', direction: 'sell', price: '18200', quantity: '5', amount: '91000', status: '已成交' },
+            { time: '09:32:08', symbol: 'RB2401', direction: 'buy', price: '3850', quantity: '20', amount: '77000', status: '已成交' }
+          ]
+
+          ordersList.value = [
+            { time: '09:30:00', symbol: 'CU2401', direction: 'buy', price: '68400', quantity: '10', filled: '0', status: '未成交' },
+            { time: '09:31:00', symbol: 'AL2401', direction: 'sell', price: '18300', quantity: '5', filled: '3', status: '部分成交' },
+            { time: '09:32:00', symbol: 'RB2401', direction: 'buy', price: '3800', quantity: '20', filled: '20', status: '已成交' }
+          ]
+
+          positionsList.value = [
+            { symbol: 'CU2401', direction: 'long', quantity: '10', avgPrice: '68000', currentPrice: '68500', profit: '5000', margin: '136000' },
+            { symbol: 'AL2401', direction: 'short', quantity: '5', avgPrice: '18500', currentPrice: '18200', profit: '1500', margin: '36400' },
+            { symbol: 'RB2401', direction: 'long', quantity: '20', avgPrice: '3800', currentPrice: '3850', profit: '1000', margin: '15400' }
+          ]
+        }
+
+        // 自动选择一些默认合约进行订阅
+        const defaultSymbols = ['rb2405', 'cu2405', 'al2405']
+
+        // 为默认合约添加初始行情数据
+        const initialMarketData = [
+          {
+            symbol: 'rb2405',
+            price: 3850,
+            change: 25,
+            changePercent: '0.65',
+            open: 3825,
+            high: 3875,
+            low: 3820,
+            volume: 125000,
+            amount: 481250000,
+            timestamp: Date.now(),
+            preClosePrice: 3825,
+            upperLimitPrice: 4207,
+            lowerLimitPrice: 3443,
+            openInterest: 1250000,
+            updateTime: new Date().toLocaleTimeString(),
+            bidPrice1: 3849,
+            bidVolume1: 100,
+            askPrice1: 3851,
+            askVolume1: 150
+          },
+          {
+            symbol: 'cu2405',
+            price: 68500,
+            change: 300,
+            changePercent: '0.44',
+            open: 68200,
+            high: 68800,
+            low: 68100,
+            volume: 85000,
+            amount: 5822500000,
+            timestamp: Date.now(),
+            preClosePrice: 68200,
+            upperLimitPrice: 75020,
+            lowerLimitPrice: 61380,
+            openInterest: 850000,
+            updateTime: new Date().toLocaleTimeString(),
+            bidPrice1: 68499,
+            bidVolume1: 50,
+            askPrice1: 68501,
+            askVolume1: 75
+          },
+          {
+            symbol: 'al2405',
+            price: 18200,
+            change: -50,
+            changePercent: '-0.27',
+            open: 18250,
+            high: 18280,
+            low: 18150,
+            volume: 95000,
+            amount: 1729000000,
+            timestamp: Date.now(),
+            preClosePrice: 18250,
+            upperLimitPrice: 20075,
+            lowerLimitPrice: 16425,
+            openInterest: 950000,
+            updateTime: new Date().toLocaleTimeString(),
+            bidPrice1: 18199,
+            bidVolume1: 80,
+            askPrice1: 18201,
+            askVolume1: 120
+          }
+        ]
+
+        // 将初始行情数据添加到store
+        initialMarketData.forEach(data => {
+          store.dispatch('updateMarketData', data)
+        })
+
+        await store.dispatch('selectSymbols', defaultSymbols)
+
+        // 调试：检查市场数据状态
+        console.log('当前市场数据:', store.state.marketData)
+        console.log('市场数据列表:', store.getters.marketDataList)
+        console.log('过滤后的市场数据:', filteredMarketData.value)
+
+        // 如果WebSocket未连接，启动模拟数据更新
+        if (!store.getters.wsConnectionState) {
+          console.log('WebSocket未连接，启动模拟数据更新')
+          startRealTimeUpdate()
+        }
+
+        // 计算表格高度
+        updateTableHeight()
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', updateTableHeight)
+
+        // 设置WebSocket行情数据监听
+        setupWebSocketListeners()
+      } catch (error) {
+        console.error('初始化失败:', error)
+        // 如果API调用失败，使用模拟数据
+        futuresList.value = generateMockData()
         fundInfo.value = {
           available: 1000000,
           frozen: 50000,
@@ -508,63 +678,111 @@ export default {
           profit: 25000,
           riskRatio: 0.15
         }
-
-        // 生成模拟行情数据
-        setTimeout(() => {
-          futuresList.value.forEach((item) => {
-            const currentPrice = item.basePrice + (Math.random() - 0.5) * item.range
-            const openPrice = item.basePrice + (Math.random() - 0.5) * item.range
-            const highPrice = Math.max(currentPrice, openPrice) + Math.random() * (item.range * 0.3)
-            const lowPrice = Math.min(currentPrice, openPrice) - Math.random() * (item.range * 0.3)
-
-            const mockData = {
-              symbol: item.symbol,
-              price: currentPrice,
-              change: (Math.random() - 0.5) * 8,
-              open: openPrice,
-              high: highPrice,
-              low: lowPrice,
-              volume: Math.floor(Math.random() * 100000) + 10000,
-              amount: Math.floor(Math.random() * 1000000000) + 100000000,
-              timestamp: Date.now()
-            }
-            store.dispatch('updateMarketData', mockData)
-          })
-        }, 500)
-
-        // 生成模拟成交数据
-        tradesList.value = [
-          { time: '09:30:15', symbol: 'CU2401', direction: 'buy', price: '68500', quantity: '10', amount: '685000', status: '已成交' },
-          { time: '09:31:22', symbol: 'AL2401', direction: 'sell', price: '18200', quantity: '5', amount: '91000', status: '已成交' },
-          { time: '09:32:08', symbol: 'RB2401', direction: 'buy', price: '3850', quantity: '20', amount: '77000', status: '已成交' }
-        ]
-
-        // 生成模拟委托数据
-        ordersList.value = [
-          { time: '09:30:00', symbol: 'CU2401', direction: 'buy', price: '68400', quantity: '10', filled: '0', status: '未成交' },
-          { time: '09:31:00', symbol: 'AL2401', direction: 'sell', price: '18300', quantity: '5', filled: '3', status: '部分成交' },
-          { time: '09:32:00', symbol: 'RB2401', direction: 'buy', price: '3800', quantity: '20', filled: '20', status: '已成交' }
-        ]
-
-        // 生成模拟持仓数据
-        positionsList.value = [
-          { symbol: 'CU2401', direction: 'long', quantity: '10', avgPrice: '68000', currentPrice: '68500', profit: '5000', margin: '136000' },
-          { symbol: 'AL2401', direction: 'short', quantity: '5', avgPrice: '18500', currentPrice: '18200', profit: '1500', margin: '36400' },
-          { symbol: 'RB2401', direction: 'long', quantity: '20', avgPrice: '3800', currentPrice: '3850', profit: '1000', margin: '15400' }
-        ]
-
-        // 启动实时数据更新
         startRealTimeUpdate()
-
-        // 计算表格高度
-        updateTableHeight()
-
-        // 监听窗口大小变化
-        window.addEventListener('resize', updateTableHeight)
-      } catch (error) {
-        console.error('初始化失败:', error)
       }
     })
+
+    // 设置WebSocket监听器
+    const setupWebSocketListeners = () => {
+      // 监听行情数据推送
+      wsService.on('market_data', (data) => {
+        console.log('MarketView收到行情数据:', data)
+
+        // 检查数据格式
+        if (data && data.data) {
+          // 如果数据在data字段中
+          updateMarketDataInTable(data.data)
+        } else if (data && data.instrumentId) {
+          // 如果数据直接在根级别
+          updateMarketDataInTable(data)
+        } else {
+          console.warn('收到的行情数据格式不正确:', data)
+        }
+      })
+
+      console.log('WebSocket行情数据监听器已设置')
+    }
+
+    // 更新表格中的行情数据
+    const updateMarketDataInTable = (data) => {
+      console.log('更新表格行情数据:', data)
+
+      // 转换后端数据格式到前端格式
+      const marketData = {
+        symbol: data.instrumentId,
+        price: data.lastPrice || 0,
+        change: (data.lastPrice || 0) - (data.preClosePrice || 0),
+        changePercent: data.preClosePrice > 0 ?
+          (((data.lastPrice - data.preClosePrice) / data.preClosePrice) * 100).toFixed(2) : '0.00',
+        open: data.openPrice || 0,
+        high: data.highestPrice || 0,
+        low: data.lowestPrice || 0,
+        volume: data.volume || 0,
+        amount: data.turnover || 0,
+        timestamp: Date.now(),
+        // 添加更多字段以支持完整的行情显示
+        preClosePrice: data.preClosePrice || 0,
+        upperLimitPrice: data.upperLimitPrice || 0,
+        lowerLimitPrice: data.lowerLimitPrice || 0,
+        openInterest: data.openInterest || 0,
+        updateTime: data.updateTime || new Date().toLocaleTimeString(),
+        // 买卖盘数据
+        bidPrice1: data.bidPrice1 || 0,
+        bidVolume1: data.bidVolume1 || 0,
+        askPrice1: data.askPrice1 || 0,
+        askVolume1: data.askVolume1 || 0,
+        bidPrice2: data.bidPrice2 || 0,
+        bidVolume2: data.bidVolume2 || 0,
+        askPrice2: data.askPrice2 || 0,
+        askVolume2: data.askVolume2 || 0,
+        bidPrice3: data.bidPrice3 || 0,
+        bidVolume3: data.bidVolume3 || 0,
+        askPrice3: data.askPrice3 || 0,
+        askVolume3: data.askVolume3 || 0
+      }
+
+      // 更新store中的数据
+      store.dispatch('updateMarketData', marketData)
+
+      console.log('行情数据已更新到store:', marketData.symbol, marketData.price)
+    }
+
+    // 测试函数：模拟WebSocket数据推送
+    const testWebSocketData = () => {
+      console.log('开始测试WebSocket数据推送...')
+
+      // 模拟推送rb2405的行情数据
+      const testData = {
+        instrumentId: 'rb2405',
+        lastPrice: 3860 + Math.random() * 20 - 10, // 3850-3870之间随机
+        preClosePrice: 3825,
+        openPrice: 3830,
+        highestPrice: 3880,
+        lowestPrice: 3815,
+        volume: 125000 + Math.floor(Math.random() * 10000),
+        turnover: 481250000 + Math.floor(Math.random() * 50000000),
+        openInterest: 1250000 + Math.floor(Math.random() * 100000),
+        updateTime: new Date().toLocaleTimeString(),
+        bidPrice1: 3849 + Math.random() * 2 - 1,
+        bidVolume1: 100 + Math.floor(Math.random() * 50),
+        askPrice1: 3851 + Math.random() * 2 - 1,
+        askVolume1: 150 + Math.floor(Math.random() * 50)
+      }
+
+      // 直接调用更新函数
+      updateMarketDataInTable(testData)
+
+      console.log('测试数据已推送:', testData)
+    }
+
+    // 在开发环境下，5秒后开始测试数据推送
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(() => {
+        console.log('开始定期推送测试数据...')
+        // 每3秒推送一次测试数据
+        setInterval(testWebSocketData, 3000)
+      }, 5000)
+    }
 
     // 启动实时数据更新
     const startRealTimeUpdate = () => {
@@ -593,9 +811,30 @@ export default {
     }
 
     // 查询投资者信息
-    const queryInvestorInfo = () => {
-      ElMessage.success('投资者信息查询成功')
-      // 这里可以根据投资者代码查询真实的资金信息
+    const queryInvestorInfo = async () => {
+      if (!investorCode.value) {
+        ElMessage.warning('请输入投资者代码')
+        return
+      }
+
+      try {
+        // 查询投资者资金信息
+        const response = await queryAPI.getInvestorFunds(investorCode.value)
+        fundInfo.value = response.data || response
+        ElMessage.success('投资者信息查询成功')
+      } catch (error) {
+        ElMessage.error('查询失败: ' + error.message)
+
+        // 如果API调用失败，使用模拟数据
+        fundInfo.value = {
+          available: 1000000 + Math.random() * 500000,
+          frozen: 50000 + Math.random() * 20000,
+          total: 1050000 + Math.random() * 520000,
+          profit: (Math.random() - 0.5) * 100000,
+          riskRatio: Math.random() * 0.3
+        }
+        ElMessage.success('投资者信息查询成功（模拟）')
+      }
     }
 
     // 处理行情表格行点击
@@ -614,32 +853,63 @@ export default {
     }
 
     // 提交订单
-    const submitOrder = () => {
+    const submitOrder = async () => {
       if (!orderForm.value.symbol) {
         ElMessage.warning('请选择合约')
         return
       }
 
-      const newOrder = {
-        time: new Date().toLocaleTimeString(),
-        symbol: orderForm.value.symbol,
-        direction: orderForm.value.direction,
-        price: orderForm.value.price.toFixed(2),
-        quantity: orderForm.value.quantity.toString(),
-        filled: '0',
-        status: '未成交'
-      }
+      try {
+        const order = {
+          symbol: orderForm.value.symbol,
+          direction: orderForm.value.direction,
+          price: orderForm.value.price,
+          quantity: orderForm.value.quantity,
+          type: orderForm.value.type
+        }
 
-      ordersList.value.unshift(newOrder)
-      ElMessage.success('订单提交成功')
+        await store.dispatch('placeOrder', order)
+        ElMessage.success('订单提交成功')
+
+        // 更新本地订单列表
+        ordersList.value = store.state.orders
+      } catch (error) {
+        ElMessage.error('下单失败: ' + error.message)
+
+        // 如果API调用失败，添加到本地模拟数据
+        const newOrder = {
+          id: Date.now(),
+          time: new Date().toLocaleTimeString(),
+          symbol: orderForm.value.symbol,
+          direction: orderForm.value.direction,
+          price: orderForm.value.price.toFixed(2),
+          quantity: orderForm.value.quantity.toString(),
+          filled: '0',
+          status: '未成交'
+        }
+
+        ordersList.value.unshift(newOrder)
+        ElMessage.success('订单提交成功（模拟）')
+      }
     }
 
     // 撤销订单
-    const cancelOrder = (order) => {
-      const index = ordersList.value.findIndex(o => o === order)
-      if (index !== -1) {
-        ordersList.value[index].status = '已撤销'
+    const cancelOrder = async (order) => {
+      try {
+        await store.dispatch('cancelOrder', order.id)
         ElMessage.success('撤单成功')
+
+        // 更新本地订单列表
+        ordersList.value = store.state.orders
+      } catch (error) {
+        ElMessage.error('撤单失败: ' + error.message)
+
+        // 如果API调用失败，更新本地模拟数据
+        const index = ordersList.value.findIndex(o => o === order)
+        if (index !== -1) {
+          ordersList.value[index].status = '已撤销'
+          ElMessage.success('撤单成功（模拟）')
+        }
       }
     }
 
@@ -1025,6 +1295,26 @@ export default {
   background-color: #67c23a !important;
   border-color: #67c23a !important;
   color: white !important;
+}
+
+/* 买卖盘价格样式 */
+.bid-price {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+.ask-price {
+  color: #67c23a;
+  font-weight: 500;
+}
+
+/* 盈亏样式 */
+.profit {
+  color: #f56c6c;
+}
+
+.loss {
+  color: #67c23a;
 }
 
 /* 响应式设计 */

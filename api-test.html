@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易中台服务 API 测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .panel {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .log-area {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        .market-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .market-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .market-item .symbol {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .market-item .price {
+            font-size: 18px;
+            color: #007bff;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .market-data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .market-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .market-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .market-card.updated {
+            border-color: #28a745;
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.3);
+        }
+
+        .market-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .market-symbol {
+            font-size: 18px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .market-time {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .market-price {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .last-price {
+            font-size: 24px;
+            font-weight: 700;
+            color: #007bff;
+        }
+
+        .price-change {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .price-up {
+            color: #dc3545;
+        }
+
+        .price-down {
+            color: #28a745;
+        }
+
+        .market-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+        }
+
+        .detail-label {
+            color: #6c757d;
+        }
+
+        .detail-value {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .bid-ask-table {
+            margin-top: 10px;
+            width: 100%;
+            font-size: 11px;
+        }
+
+        .bid-ask-table th,
+        .bid-ask-table td {
+            padding: 2px 4px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .bid-ask-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .bid-price {
+            color: #dc3545;
+        }
+
+        .ask-price {
+            color: #28a745;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 交易中台服务 API 测试工具</h1>
+            <p>基于飞马交易API的Java中台服务接口测试</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span>交易连接: <span id="connectionText">未连接</span></span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot" id="loginStatus"></div>
+                <span>登录状态: <span id="loginText">未登录</span></span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot" id="marketStatus"></div>
+                <span>行情连接: <span id="marketText">未连接</span></span>
+            </div>
+            <div class="status-item">
+                <span>服务地址: <strong>http://localhost:8080</strong></span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- 配置面板 -->
+            <div class="panel">
+                <div class="panel-header">⚙️ 配置管理</div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label>投资者ID</label>
+                        <input type="text" id="investorId" value="default_investor" placeholder="输入投资者ID">
+                        <button class="btn" onclick="setInvestorId()" style="margin-top: 5px;">设置投资者ID</button>
+                        <button class="btn" onclick="getInvestorId()" style="margin-top: 5px;">获取当前ID</button>
+                    </div>
+
+                    <hr style="margin: 15px 0;">
+
+                    <button class="btn" onclick="getStatus()">获取状态</button>
+                    <button class="btn btn-success" onclick="login()">登录</button>
+                    <button class="btn btn-danger" onclick="logout()">登出</button>
+                </div>
+            </div>
+
+            <!-- 交易操作面板 -->
+            <div class="panel">
+                <div class="panel-header">📊 交易操作</div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label>合约代码</label>
+                        <input type="text" id="instrumentId" value="rb2405" placeholder="例如: rb2405">
+                    </div>
+
+                    <div class="form-group">
+                        <label>买卖方向</label>
+                        <select id="direction">
+                            <option value="0">买</option>
+                            <option value="1">卖</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>开平标志</label>
+                        <select id="offsetFlag">
+                            <option value="0">开仓</option>
+                            <option value="1">平仓</option>
+                            <option value="3">平今</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>价格</label>
+                        <input type="number" id="price" value="3500" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>数量</label>
+                        <input type="number" id="volume" value="1" min="1">
+                    </div>
+
+                    <button class="btn btn-success" onclick="placeOrder()">下单</button>
+
+                    <hr style="margin: 15px 0;">
+
+                    <button class="btn" onclick="queryPosition()">查询持仓</button>
+                    <button class="btn" onclick="queryAccount()">查询资金</button>
+                    <button class="btn" onclick="queryOrders()">查询报单</button>
+                    <button class="btn" onclick="queryTrades()">查询成交</button>
+                </div>
+            </div>
+
+            <!-- 行情操作面板 -->
+            <div class="panel">
+                <div class="panel-header">📈 行情操作</div>
+                <div class="panel-body">
+                    <button class="btn" onclick="getMarketStatus()">获取行情状态</button>
+                    <button class="btn btn-success" onclick="marketLogin()">行情登录</button>
+
+                    <hr style="margin: 15px 0;">
+
+                    <div class="form-group">
+                        <label>订阅合约 (多个用逗号分隔)</label>
+                        <input type="text" id="subscribeInstruments" value="rb2405,cu2405" placeholder="例如: rb2405,cu2405">
+                    </div>
+
+                    <button class="btn btn-success" onclick="subscribeMarket()">订阅行情</button>
+                    <button class="btn btn-danger" onclick="unsubscribeMarket()">退订行情</button>
+                    <button class="btn" onclick="clearMarketData()">清空行情</button>
+                </div>
+            </div>
+
+            <!-- 实时行情监控面板 -->
+            <div class="panel full-width">
+                <div class="panel-header">
+                    📊 实时行情监控
+                    <button class="btn" style="float: right; padding: 4px 8px; font-size: 12px;" onclick="toggleMarketDataUpdate()">
+                        <span id="marketUpdateStatus">暂停更新</span>
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <div class="market-data-grid" id="marketDataGrid">
+                        <div class="no-data">暂无行情数据，请先订阅合约</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志面板 -->
+            <div class="panel full-width">
+                <div class="panel-header">
+                    📝 操作日志
+                    <button class="btn" style="float: right; padding: 4px 8px; font-size: 12px;" onclick="clearLog()">清空日志</button>
+                </div>
+                <div class="panel-body">
+                    <div class="log-area" id="logArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let stompClient = null;
+        let isConnected = false;
+        let marketDataUpdateEnabled = true;
+        let marketDataHistory = new Map(); // 存储历史价格用于计算涨跌
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 API测试工具已加载');
+            log('📡 尝试连接WebSocket...');
+            connectWebSocket();
+
+            // 定期刷新状态
+            setInterval(getStatus, 5000);
+            getStatus();
+        });
+
+        // 日志函数
+        function log(message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.textContent += `[${timestamp}] ${message}\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').textContent = '';
+        }
+
+        // WebSocket连接
+        function connectWebSocket() {
+            try {
+                // 检查是否在HTTPS环境中
+                const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                const wsUrl = `${protocol}//localhost:8080/ws`;
+
+                log(`🔄 尝试连接WebSocket: ${wsUrl}`);
+
+                const socket = new SockJS(wsUrl);
+                stompClient = Stomp.over(socket);
+
+                // 设置调试信息
+                stompClient.debug = function(str) {
+                    console.log('STOMP: ' + str);
+                };
+
+                stompClient.connect({}, function(frame) {
+                    log('✅ WebSocket连接成功');
+                    isConnected = true;
+                    setupSubscriptions();
+                }, function(error) {
+                    log('❌ WebSocket连接失败: ' + (error.message || error));
+                    isConnected = false;
+                    // 5秒后重试
+                    setTimeout(connectWebSocket, 5000);
+                });
+            } catch (error) {
+                log('❌ WebSocket连接异常: ' + error.message);
+                // 如果是URL scheme错误，尝试备用连接方式
+                if (error.message.includes("scheme must be either 'http:' or 'https:'")) {
+                    log('🔄 尝试备用WebSocket连接方式...');
+                    connectWebSocketFallback();
+                } else {
+                    setTimeout(connectWebSocket, 5000);
+                }
+            }
+        }
+
+        // 备用WebSocket连接方式
+        function connectWebSocketFallback() {
+            try {
+                log('🔄 使用备用连接方式...');
+
+                // 直接使用WebSocket而不是SockJS
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//localhost:8080/ws/websocket`;
+
+                const socket = new WebSocket(wsUrl);
+                stompClient = Stomp.over(socket);
+
+                stompClient.connect({}, function(frame) {
+                    log('✅ 备用WebSocket连接成功');
+                    isConnected = true;
+                    setupSubscriptions();
+                }, function(error) {
+                    log('❌ 备用WebSocket连接失败: ' + (error.message || error));
+                    isConnected = false;
+                    // 如果备用方式也失败，显示离线模式
+                    showOfflineMode();
+                });
+            } catch (error) {
+                log('❌ 备用WebSocket连接异常: ' + error.message);
+                showOfflineMode();
+            }
+        }
+
+        // 显示离线模式
+        function showOfflineMode() {
+            log('📴 进入离线模式 - WebSocket功能不可用');
+            log('💡 提示: 可以继续测试REST API功能');
+            isConnected = false;
+        }
+
+        // 设置订阅
+        function setupSubscriptions() {
+            // 订阅连接状态
+            stompClient.subscribe('/topic/connection', function(message) {
+                const data = JSON.parse(message.body);
+                log('📡 连接状态: ' + data.message);
+                updateConnectionStatus(data.success);
+            });
+
+            // 订阅登录状态
+            stompClient.subscribe('/topic/login', function(message) {
+                const data = JSON.parse(message.body);
+                log('🔐 登录状态: ' + data.message);
+                updateLoginStatus(data.success);
+            });
+
+            // 订阅报单回报
+            stompClient.subscribe('/topic/orders', function(message) {
+                const data = JSON.parse(message.body);
+                log('📋 报单回报: ' + JSON.stringify(data.data, null, 2));
+            });
+
+            // 订阅成交回报
+            stompClient.subscribe('/topic/trades', function(message) {
+                const data = JSON.parse(message.body);
+                log('💰 成交回报: ' + JSON.stringify(data.data, null, 2));
+            });
+
+            // 订阅行情数据
+            stompClient.subscribe('/topic/market/data', function(message) {
+                const data = JSON.parse(message.body);
+                updateMarketData(data.data);
+            });
+
+            // 订阅行情连接状态
+            stompClient.subscribe('/topic/market/connection', function(message) {
+                const data = JSON.parse(message.body);
+                log('📈 行情连接: ' + data.message);
+                updateMarketStatus(data.success);
+            });
+        }
+
+        // 更新状态显示
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+            }
+        }
+
+        function updateLoginStatus(loggedIn) {
+            const dot = document.getElementById('loginStatus');
+            const text = document.getElementById('loginText');
+            if (loggedIn) {
+                dot.classList.add('connected');
+                text.textContent = '已登录';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未登录';
+            }
+        }
+
+        function updateMarketStatus(connected) {
+            const dot = document.getElementById('marketStatus');
+            const text = document.getElementById('marketText');
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+            }
+        }
+
+        // 更新行情数据显示
+        function updateMarketData(data) {
+            if (!marketDataUpdateEnabled) return;
+
+            const container = document.getElementById('marketDataGrid');
+            const instrumentId = data.instrumentId;
+
+            // 移除"暂无数据"提示
+            const noDataElement = container.querySelector('.no-data');
+            if (noDataElement) {
+                noDataElement.remove();
+            }
+
+            // 获取历史价格用于计算涨跌
+            const lastPrice = marketDataHistory.get(instrumentId) || data.lastPrice;
+            const priceChange = data.lastPrice - lastPrice;
+            const priceChangePercent = lastPrice > 0 ? ((priceChange / lastPrice) * 100).toFixed(2) : 0;
+
+            // 更新历史价格
+            marketDataHistory.set(instrumentId, data.lastPrice);
+
+            // 创建行情卡片HTML
+            const cardHtml = `
+                <div class="market-card updated" id="market-card-${instrumentId}">
+                    <div class="market-header">
+                        <div class="market-symbol">${instrumentId}</div>
+                        <div class="market-time">${data.updateTime || new Date().toLocaleTimeString()}</div>
+                    </div>
+
+                    <div class="market-price">
+                        <div class="last-price">${data.lastPrice.toFixed(2)}</div>
+                        <div class="price-change ${priceChange >= 0 ? 'price-up' : 'price-down'}">
+                            ${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)} (${priceChangePercent}%)
+                        </div>
+                    </div>
+
+                    <div class="market-details">
+                        <div class="detail-item">
+                            <span class="detail-label">成交量:</span>
+                            <span class="detail-value">${(data.volume || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">成交额:</span>
+                            <span class="detail-value">${((data.turnover || 0) / 10000).toFixed(0)}万</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">持仓量:</span>
+                            <span class="detail-value">${(data.openInterest || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">涨停价:</span>
+                            <span class="detail-value">${(data.upperLimitPrice || 0).toFixed(2)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">跌停价:</span>
+                            <span class="detail-value">${(data.lowerLimitPrice || 0).toFixed(2)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">昨收价:</span>
+                            <span class="detail-value">${(data.preClosePrice || 0).toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <table class="bid-ask-table">
+                        <thead>
+                            <tr>
+                                <th>买量</th>
+                                <th>买价</th>
+                                <th>卖价</th>
+                                <th>卖量</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${data.bid?.volume1 || 0}</td>
+                                <td class="bid-price">${(data.bid?.price1 || 0).toFixed(2)}</td>
+                                <td class="ask-price">${(data.ask?.price1 || 0).toFixed(2)}</td>
+                                <td>${data.ask?.volume1 || 0}</td>
+                            </tr>
+                            <tr>
+                                <td>${data.bid?.volume2 || 0}</td>
+                                <td class="bid-price">${(data.bid?.price2 || 0).toFixed(2)}</td>
+                                <td class="ask-price">${(data.ask?.price2 || 0).toFixed(2)}</td>
+                                <td>${data.ask?.volume2 || 0}</td>
+                            </tr>
+                            <tr>
+                                <td>${data.bid?.volume3 || 0}</td>
+                                <td class="bid-price">${(data.bid?.price3 || 0).toFixed(2)}</td>
+                                <td class="ask-price">${(data.ask?.price3 || 0).toFixed(2)}</td>
+                                <td>${data.ask?.volume3 || 0}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // 查找现有卡片并更新或创建新卡片
+            const existingCard = document.getElementById('market-card-' + instrumentId);
+            if (existingCard) {
+                existingCard.outerHTML = cardHtml;
+            } else {
+                container.innerHTML += cardHtml;
+            }
+
+            // 添加更新动画效果
+            setTimeout(() => {
+                const card = document.getElementById('market-card-' + instrumentId);
+                if (card) {
+                    card.classList.remove('updated');
+                }
+            }, 1000);
+        }
+
+        // API请求函数
+        async function apiRequest(method, url, data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                log(`🔄 ${method} ${url}`);
+                const response = await fetch(API_BASE + url, options);
+                const result = await response.json();
+
+                if (result.success) {
+                    log(`✅ ${result.message}`);
+                    if (result.data) {
+                        log(`📄 响应数据: ${JSON.stringify(result.data, null, 2)}`);
+                    }
+                } else {
+                    log(`❌ ${result.message}`);
+                }
+
+                return result;
+            } catch (error) {
+                log(`❌ 请求失败: ${error.message}`);
+                return { success: false, message: error.message };
+            }
+        }
+
+        // 交易API函数
+        async function getStatus() {
+            const result = await apiRequest('GET', '/trading/status');
+            if (result.success) {
+                updateConnectionStatus(result.data.connected);
+                updateLoginStatus(result.data.loggedIn);
+            }
+        }
+
+        async function login() {
+            await apiRequest('POST', '/trading/login');
+        }
+
+        async function logout() {
+            await apiRequest('POST', '/trading/logout');
+        }
+
+        async function placeOrder() {
+            const orderData = {
+                instrumentId: document.getElementById('instrumentId').value,
+                direction: document.getElementById('direction').value,
+                offsetFlag: document.getElementById('offsetFlag').value,
+                price: parseFloat(document.getElementById('price').value),
+                volume: parseInt(document.getElementById('volume').value)
+            };
+
+            await apiRequest('POST', '/trading/order', orderData);
+        }
+
+        async function queryPosition() {
+            await apiRequest('GET', '/trading/position');
+        }
+
+        async function queryAccount() {
+            await apiRequest('GET', '/trading/account');
+        }
+
+        async function queryOrders() {
+            await apiRequest('GET', '/trading/orders');
+        }
+
+        async function queryTrades() {
+            await apiRequest('GET', '/trading/trades');
+        }
+
+        // 行情API函数
+        async function getMarketStatus() {
+            await apiRequest('GET', '/market/status');
+        }
+
+        async function marketLogin() {
+            await apiRequest('POST', '/market/login');
+        }
+
+        async function subscribeMarket() {
+            const instruments = document.getElementById('subscribeInstruments').value
+                .split(',').map(s => s.trim()).filter(s => s);
+
+            await apiRequest('POST', '/market/subscribe', { instruments });
+        }
+
+        async function unsubscribeMarket() {
+            const instruments = document.getElementById('subscribeInstruments').value
+                .split(',').map(s => s.trim()).filter(s => s);
+
+            await apiRequest('POST', '/market/unsubscribe', { instruments });
+        }
+
+        // 新增功能函数
+        async function setInvestorId() {
+            const investorId = document.getElementById('investorId').value.trim();
+            if (!investorId) {
+                alert('请输入投资者ID');
+                return;
+            }
+
+            await apiRequest('POST', '/trading/config/investor', { investorId });
+        }
+
+        async function getInvestorId() {
+            await apiRequest('GET', '/trading/config/investor');
+        }
+
+        function clearMarketData() {
+            const container = document.getElementById('marketDataGrid');
+            container.innerHTML = '<div class="no-data">暂无行情数据，请先订阅合约</div>';
+            marketDataHistory.clear();
+            log('🧹 行情数据已清空');
+        }
+
+        function toggleMarketDataUpdate() {
+            marketDataUpdateEnabled = !marketDataUpdateEnabled;
+            const statusElement = document.getElementById('marketUpdateStatus');
+            statusElement.textContent = marketDataUpdateEnabled ? '暂停更新' : '恢复更新';
+
+            log(marketDataUpdateEnabled ? '📊 行情更新已恢复' : '⏸️ 行情更新已暂停');
+        }
+    </script>
+</body>
+</html>
