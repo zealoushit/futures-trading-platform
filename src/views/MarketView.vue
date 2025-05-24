@@ -81,73 +81,71 @@
           </div>
         </div>
 
-        <div class="market-table">
-          <el-table
-            :data="filteredMarketData"
-            style="width: 100%"
-            height="400px"
-            @row-click="handleRowClick"
-            highlight-current-row
-            :row-class-name="getRowClassName"
-          >
-            <el-table-column prop="symbol" label="合约" width="100" fixed></el-table-column>
-            <el-table-column label="名称" width="120">
-              <template #default="scope">
-                {{ getContractName(scope.row.symbol) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="交易所" width="80">
-              <template #default="scope">
-                {{ getContractExchange(scope.row.symbol) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="最新价" width="100">
-              <template #default="scope">
-                <span :class="getPriceClass(scope.row.change)">
-                  {{ formatPrice(scope.row.price) }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="涨跌" width="80">
-              <template #default="scope">
-                <span :class="getPriceClass(scope.row.change)">
-                  {{ formatPriceChange(scope.row.change, scope.row.price) }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="涨跌幅" width="80">
-              <template #default="scope">
-                <span :class="getPriceClass(scope.row.change)">
-                  {{ formatChange(scope.row.change) }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="open" label="开盘" width="100">
-              <template #default="scope">
-                {{ formatPrice(scope.row.open) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="high" label="最高" width="100">
-              <template #default="scope">
-                {{ formatPrice(scope.row.high) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="low" label="最低" width="100">
-              <template #default="scope">
-                {{ formatPrice(scope.row.low) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="volume" label="成交量" width="100">
-              <template #default="scope">
-                {{ formatVolume(scope.row.volume) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="amount" label="成交额" width="120">
-              <template #default="scope">
-                {{ formatAmount(scope.row.amount) }}
-              </template>
-            </el-table-column>
-          </el-table>
+        <div class="market-table" ref="tableContainer">
+          <div class="virtual-table">
+            <!-- 表头 -->
+            <div class="table-header">
+              <div class="header-cell" style="width: 100px;">合约</div>
+              <div class="header-cell" style="width: 120px;">名称</div>
+              <div class="header-cell" style="width: 80px;">交易所</div>
+              <div class="header-cell" style="width: 100px;">最新价</div>
+              <div class="header-cell" style="width: 80px;">涨跌</div>
+              <div class="header-cell" style="width: 80px;">涨跌幅</div>
+              <div class="header-cell" style="width: 100px;">开盘</div>
+              <div class="header-cell" style="width: 100px;">最高</div>
+              <div class="header-cell" style="width: 100px;">最低</div>
+              <div class="header-cell" style="width: 100px;">成交量</div>
+              <div class="header-cell" style="width: 120px;">成交额</div>
+            </div>
+
+            <!-- 虚拟滚动容器 -->
+            <div
+              class="table-body"
+              @scroll="handleScroll"
+              :style="{ height: tableHeight + 'px' }"
+            >
+              <!-- 占位元素，用于撑开滚动条 -->
+              <div :style="{ height: totalHeight + 'px', position: 'relative' }">
+                <!-- 可见行 -->
+                <div
+                  v-for="(item, index) in visibleData"
+                  :key="item.symbol"
+                  class="table-row"
+                  :class="{ 'selected-row': selectedContract && selectedContract.symbol === item.symbol }"
+                  :style="{
+                    position: 'absolute',
+                    top: (startIndex + index) * rowHeight + 'px',
+                    width: '100%'
+                  }"
+                  @click="handleRowClick(item)"
+                >
+                  <div class="table-cell" style="width: 100px;">{{ item.symbol }}</div>
+                  <div class="table-cell" style="width: 120px;">{{ getContractName(item.symbol) }}</div>
+                  <div class="table-cell" style="width: 80px;">{{ getContractExchange(item.symbol) }}</div>
+                  <div class="table-cell" style="width: 100px;">
+                    <span :class="getPriceClass(item.change)">
+                      {{ formatPrice(item.price) }}
+                    </span>
+                  </div>
+                  <div class="table-cell" style="width: 80px;">
+                    <span :class="getPriceClass(item.change)">
+                      {{ formatPriceChange(item.change, item.price) }}
+                    </span>
+                  </div>
+                  <div class="table-cell" style="width: 80px;">
+                    <span :class="getPriceClass(item.change)">
+                      {{ formatChange(item.change) }}
+                    </span>
+                  </div>
+                  <div class="table-cell" style="width: 100px;">{{ formatPrice(item.open) }}</div>
+                  <div class="table-cell" style="width: 100px;">{{ formatPrice(item.high) }}</div>
+                  <div class="table-cell" style="width: 100px;">{{ formatPrice(item.low) }}</div>
+                  <div class="table-cell" style="width: 100px;">{{ formatVolume(item.volume) }}</div>
+                  <div class="table-cell" style="width: 120px;">{{ formatAmount(item.amount) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -286,7 +284,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 
@@ -317,6 +315,13 @@ export default {
     const tradesList = ref([])
     const ordersList = ref([])
     const positionsList = ref([])
+
+    // 虚拟滚动相关
+    const tableContainer = ref(null)
+    const tableHeight = ref(400)
+    const rowHeight = 40
+    const startIndex = ref(0)
+    const visibleCount = ref(10)
 
     // 交易所分组
     const exchanges = ref([
@@ -353,6 +358,38 @@ export default {
       }
 
       return data
+    })
+
+    // 虚拟滚动计算属性
+    const totalHeight = computed(() => filteredMarketData.value.length * rowHeight)
+
+    const visibleData = computed(() => {
+      const endIndex = Math.min(
+        startIndex.value + visibleCount.value,
+        filteredMarketData.value.length
+      )
+      return filteredMarketData.value.slice(startIndex.value, endIndex)
+    })
+
+    // 处理滚动事件
+    const handleScroll = (event) => {
+      const scrollTop = event.target.scrollTop
+      const newStartIndex = Math.floor(scrollTop / rowHeight)
+      startIndex.value = newStartIndex
+    }
+
+    // 更新表格高度
+    const updateTableHeight = () => {
+      setTimeout(() => {
+        const containerHeight = window.innerHeight - 350 // 减去导航栏、标题栏、下方面板等高度
+        tableHeight.value = Math.max(300, containerHeight)
+        visibleCount.value = Math.ceil(tableHeight.value / rowHeight) + 2 // 多渲染2行缓冲
+      }, 100)
+    }
+
+    // 清理资源
+    onUnmounted(() => {
+      window.removeEventListener('resize', updateTableHeight)
     })
 
     // 生成大量模拟数据
@@ -518,6 +555,12 @@ export default {
 
         // 启动实时数据更新
         startRealTimeUpdate()
+
+        // 计算表格高度
+        updateTableHeight()
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', updateTableHeight)
       } catch (error) {
         console.error('初始化失败:', error)
       }
@@ -682,6 +725,16 @@ export default {
       categories,
       filteredMarketData,
 
+      // 虚拟滚动
+      tableContainer,
+      tableHeight,
+      rowHeight,
+      startIndex,
+      visibleCount,
+      totalHeight,
+      visibleData,
+      handleScroll,
+
       // 方法
       queryInvestorInfo,
       handleRowClick,
@@ -822,6 +875,72 @@ export default {
   border: 1px solid #e9ecef;
   border-radius: 6px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 虚拟表格样式 */
+.virtual-table {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-header {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+  color: #333;
+  height: 40px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.header-cell {
+  padding: 0 12px;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.header-cell:last-child {
+  border-right: none;
+}
+
+.table-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.table-row {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.table-row:hover {
+  background-color: #f5f5f5;
+}
+
+.table-cell {
+  padding: 0 12px;
+  border-right: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-cell:last-child {
+  border-right: none;
 }
 
 /* 右侧下单面板 */
@@ -853,6 +972,8 @@ export default {
 /* 下方标签栏区域 */
 .bottom-panel {
   height: 250px;
+  min-height: 200px;
+  max-height: 300px;
   border: 1px solid #e9ecef;
   border-radius: 6px;
   overflow: hidden;

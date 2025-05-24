@@ -17,8 +17,10 @@ protocol.registerSchemesAsPrivileged([
 async function createWindow() {
   // 创建浏览器窗口
   win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1400,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 700,
     webPreferences: {
       // 使用插件的preload
       preload: isDevelopment
@@ -27,8 +29,24 @@ async function createWindow() {
       // 是否集成Node
       nodeIntegration: false,
       contextIsolation: true
-    }
+    },
+    // 隐藏菜单栏
+    autoHideMenuBar: true,
+    // 设置窗口图标和标题
+    title: '期货交易平台',
+    // 窗口居中显示
+    center: true,
+    // 显示时的动画效果
+    show: false
   })
+
+  // 窗口准备好后再显示，避免闪烁
+  win.once('ready-to-show', () => {
+    win.show()
+  })
+
+  // 完全隐藏菜单栏（包括Alt键也无法显示）
+  win.setMenuBarVisibility(false)
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // 如果在开发环境，加载开发服务器URL
