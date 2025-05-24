@@ -106,9 +106,10 @@ export default {
           ElMessage.info('设置功能开发中')
           break
         case 'logout':
-          store.dispatch('logout')
-          ElMessage.success('已退出登录')
-          router.push('/login')
+          store.dispatch('logout').then(() => {
+            ElMessage.success('已退出登录')
+            router.push('/login')
+          })
           break
       }
     }

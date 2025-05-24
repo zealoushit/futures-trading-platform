@@ -6,12 +6,12 @@ export default createStore({
     marketData: {},
     selectedSymbols: []
   },
-  
+
   getters: {
     isLoggedIn: state => !!state.user,
     marketDataList: state => Object.values(state.marketData)
   },
-  
+
   mutations: {
     SET_USER(state, user) {
       state.user = user
@@ -29,7 +29,7 @@ export default createStore({
       state.marketData = {}
     }
   },
-  
+
   actions: {
     login({ commit }, credentials) {
       // 模拟登录，实际应用中应该调用API
@@ -47,12 +47,12 @@ export default createStore({
         }, 500)
       })
     },
-    
+
     logout({ commit }) {
       commit('SET_USER', null)
       localStorage.removeItem('user')
     },
-    
+
     initializeStore({ commit }) {
       // 从localStorage恢复用户会话
       const user = localStorage.getItem('user')
@@ -60,14 +60,14 @@ export default createStore({
         commit('SET_USER', JSON.parse(user))
       }
     },
-    
+
     updateMarketData({ commit }, data) {
       commit('SET_MARKET_DATA', data)
     },
-    
+
     selectSymbols({ commit }, symbols) {
       commit('SET_SELECTED_SYMBOLS', symbols)
-      commit('CLEAR_MARKET_DATA')
+      // 不清空市场数据，保留已有数据
     }
   }
 })
