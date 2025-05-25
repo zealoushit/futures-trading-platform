@@ -1,0 +1,79 @@
+# Trading Middleware Configuration - Java 8兼容
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+
+spring:
+  application:
+    name: trading-middleware
+
+  # JSON配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+  # WebSocket配置
+  websocket:
+    allowed-origins: "*"
+
+# 交易API配置
+trading:
+  # 交易前置机地址
+  front-address: "tcp://127.0.0.1:17001"
+
+  # 行情前置机地址（如果需要）
+  md-address: "tcp://127.0.0.1:17002"
+
+  # 经纪商代码
+  broker-id: "0001"
+
+  # 用户代码
+  user-id: "your_user_id"
+
+  # 密码
+  password: "your_password"
+
+  # 投资者代码
+  investor-id: "your_investor_id"
+
+  # 应用标识
+  app-id: "trading_app"
+
+  # 认证码
+  auth-code: "your_auth_code"
+
+  # 产品信息
+  user-product-info: "TradingMiddleware"
+
+  # 流文件路径
+  flow-path: "./flow/"
+
+# 日志配置
+logging:
+  level:
+    com.trading: DEBUG
+    org.springframework: INFO
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/trading-middleware.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

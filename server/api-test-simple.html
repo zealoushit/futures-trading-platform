@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易API测试工具 (简化版)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+        
+        .status-dot.connected {
+            background: #28a745;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .panel {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+        }
+        
+        .panel-body {
+            padding: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .log-area {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 交易API测试工具 (简化版)</h1>
+            <p>专注于REST API测试，无WebSocket依赖</p>
+        </div>
+        
+        <div class="warning">
+            <strong>📢 注意:</strong> 此版本专注于REST API测试，不包含WebSocket实时推送功能。
+            如需测试WebSocket，请使用 <code>websocket-test.html</code>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span>服务连接: <span id="connectionText">未知</span></span>
+            </div>
+            <div class="status-item">
+                <span>服务地址: <strong>http://localhost:8080</strong></span>
+            </div>
+            <div class="status-item">
+                <span>模式: <strong>REST API Only</strong></span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <!-- 配置面板 -->
+            <div class="panel">
+                <div class="panel-header">⚙️ 配置管理</div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label>投资者ID</label>
+                        <input type="text" id="investorId" value="test_investor" placeholder="输入投资者ID">
+                        <button class="btn" onclick="setInvestorId()" style="margin-top: 5px;">设置投资者ID</button>
+                        <button class="btn" onclick="getInvestorId()" style="margin-top: 5px;">获取当前ID</button>
+                    </div>
+                    
+                    <hr style="margin: 15px 0;">
+                    
+                    <button class="btn" onclick="getStatus()">获取状态</button>
+                    <button class="btn btn-success" onclick="login()">登录</button>
+                    <button class="btn btn-danger" onclick="logout()">登出</button>
+                    <button class="btn" onclick="getVersion()">版本信息</button>
+                </div>
+            </div>
+            
+            <!-- 交易操作面板 -->
+            <div class="panel">
+                <div class="panel-header">📊 交易操作</div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label>合约代码</label>
+                        <input type="text" id="instrumentId" value="rb2405" placeholder="例如: rb2405">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>买卖方向</label>
+                        <select id="direction">
+                            <option value="0">买</option>
+                            <option value="1">卖</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>开平标志</label>
+                        <select id="offsetFlag">
+                            <option value="0">开仓</option>
+                            <option value="1">平仓</option>
+                            <option value="3">平今</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>价格</label>
+                        <input type="number" id="price" value="3500" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>数量</label>
+                        <input type="number" id="volume" value="1" min="1">
+                    </div>
+                    
+                    <button class="btn btn-success" onclick="placeOrder()">下单</button>
+                    
+                    <hr style="margin: 15px 0;">
+                    
+                    <button class="btn" onclick="queryPosition()">查询持仓</button>
+                    <button class="btn" onclick="queryAccount()">查询资金</button>
+                    <button class="btn" onclick="queryOrders()">查询报单</button>
+                    <button class="btn" onclick="queryTrades()">查询成交</button>
+                </div>
+            </div>
+            
+            <!-- 行情操作面板 -->
+            <div class="panel">
+                <div class="panel-header">📈 行情操作</div>
+                <div class="panel-body">
+                    <button class="btn" onclick="getMarketStatus()">获取行情状态</button>
+                    <button class="btn btn-success" onclick="marketLogin()">行情登录</button>
+                    
+                    <hr style="margin: 15px 0;">
+                    
+                    <div class="form-group">
+                        <label>订阅合约 (多个用逗号分隔)</label>
+                        <input type="text" id="subscribeInstruments" value="rb2405,cu2405" placeholder="例如: rb2405,cu2405">
+                    </div>
+                    
+                    <button class="btn btn-success" onclick="subscribeMarket()">订阅行情</button>
+                    <button class="btn btn-danger" onclick="unsubscribeMarket()">退订行情</button>
+                    <button class="btn" onclick="getSubscriptions()">获取订阅列表</button>
+                    
+                    <hr style="margin: 15px 0;">
+                    
+                    <div class="form-group">
+                        <label>查询合约</label>
+                        <input type="text" id="queryInstrumentId" value="rb2405" placeholder="合约代码">
+                        <button class="btn" onclick="queryInstrument()" style="margin-top: 5px;">查询合约信息</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 测试工具面板 -->
+            <div class="panel">
+                <div class="panel-header">🛠️ 测试工具</div>
+                <div class="panel-body">
+                    <button class="btn" onclick="testAllAPIs()">测试所有API</button>
+                    <button class="btn" onclick="healthCheck()">健康检查</button>
+                    <button class="btn" onclick="clearLog()">清空日志</button>
+                    
+                    <hr style="margin: 15px 0;">
+                    
+                    <div style="font-size: 12px; color: #6c757d;">
+                        <p><strong>快速测试流程:</strong></p>
+                        <p>1. 点击"健康检查"验证服务</p>
+                        <p>2. 设置投资者ID</p>
+                        <p>3. 点击"登录"</p>
+                        <p>4. 测试下单和查询功能</p>
+                        <p>5. 测试行情订阅功能</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 日志面板 -->
+            <div class="panel full-width">
+                <div class="panel-header">
+                    📝 操作日志
+                    <button class="btn" style="float: right; padding: 4px 8px; font-size: 12px;" onclick="clearLog()">清空日志</button>
+                </div>
+                <div class="panel-body">
+                    <div class="log-area" id="logArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 简化版API测试工具已加载');
+            log('📡 专注于REST API测试，无WebSocket依赖');
+            
+            // 自动进行健康检查
+            setTimeout(healthCheck, 1000);
+        });
+        
+        // 日志函数
+        function log(message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.textContent += `[${timestamp}] ${message}\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('logArea').textContent = '';
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+            }
+        }
+        
+        // API请求函数
+        async function apiRequest(method, url, data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                log(`🔄 ${method} ${url}`);
+                if (data) {
+                    log(`📤 请求数据: ${JSON.stringify(data)}`);
+                }
+                
+                const response = await fetch(API_BASE + url, options);
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`✅ ${result.message}`);
+                    if (result.data) {
+                        log(`📄 响应数据: ${JSON.stringify(result.data, null, 2)}`);
+                    }
+                    updateConnectionStatus(true);
+                } else {
+                    log(`❌ ${result.message}`);
+                }
+                
+                return result;
+            } catch (error) {
+                log(`❌ 请求失败: ${error.message}`);
+                updateConnectionStatus(false);
+                return { success: false, message: error.message };
+            }
+        }
+        
+        // API函数
+        async function healthCheck() {
+            await apiRequest('GET', '/trading/health');
+        }
+        
+        async function getStatus() {
+            await apiRequest('GET', '/trading/status');
+        }
+        
+        async function getVersion() {
+            await apiRequest('GET', '/trading/version');
+        }
+        
+        async function login() {
+            await apiRequest('POST', '/trading/login');
+        }
+        
+        async function logout() {
+            await apiRequest('POST', '/trading/logout');
+        }
+        
+        async function setInvestorId() {
+            const investorId = document.getElementById('investorId').value.trim();
+            if (!investorId) {
+                alert('请输入投资者ID');
+                return;
+            }
+            await apiRequest('POST', '/trading/config/investor', { investorId });
+        }
+        
+        async function getInvestorId() {
+            await apiRequest('GET', '/trading/config/investor');
+        }
+        
+        async function placeOrder() {
+            const orderData = {
+                instrumentId: document.getElementById('instrumentId').value,
+                direction: document.getElementById('direction').value,
+                offsetFlag: document.getElementById('offsetFlag').value,
+                price: parseFloat(document.getElementById('price').value),
+                volume: parseInt(document.getElementById('volume').value)
+            };
+            await apiRequest('POST', '/trading/order', orderData);
+        }
+        
+        async function queryPosition() {
+            await apiRequest('GET', '/trading/position');
+        }
+        
+        async function queryAccount() {
+            await apiRequest('GET', '/trading/account');
+        }
+        
+        async function queryOrders() {
+            await apiRequest('GET', '/trading/orders');
+        }
+        
+        async function queryTrades() {
+            await apiRequest('GET', '/trading/trades');
+        }
+        
+        async function getMarketStatus() {
+            await apiRequest('GET', '/market/status');
+        }
+        
+        async function marketLogin() {
+            await apiRequest('POST', '/market/login');
+        }
+        
+        async function subscribeMarket() {
+            const instruments = document.getElementById('subscribeInstruments').value
+                .split(',').map(s => s.trim()).filter(s => s);
+            await apiRequest('POST', '/market/subscribe', { instruments });
+        }
+        
+        async function unsubscribeMarket() {
+            const instruments = document.getElementById('subscribeInstruments').value
+                .split(',').map(s => s.trim()).filter(s => s);
+            await apiRequest('POST', '/market/unsubscribe', { instruments });
+        }
+        
+        async function getSubscriptions() {
+            await apiRequest('GET', '/market/subscriptions');
+        }
+        
+        async function queryInstrument() {
+            const instrumentId = document.getElementById('queryInstrumentId').value.trim();
+            if (!instrumentId) {
+                alert('请输入合约代码');
+                return;
+            }
+            await apiRequest('GET', `/market/instrument/${instrumentId}`);
+        }
+        
+        async function testAllAPIs() {
+            log('🧪 开始测试所有API接口...');
+            
+            const tests = [
+                { name: '健康检查', func: healthCheck },
+                { name: '获取状态', func: getStatus },
+                { name: '版本信息', func: getVersion },
+                { name: '获取行情状态', func: getMarketStatus },
+                { name: '获取订阅列表', func: getSubscriptions }
+            ];
+            
+            for (const test of tests) {
+                log(`\n🔍 测试: ${test.name}`);
+                await test.func();
+                await new Promise(resolve => setTimeout(resolve, 500)); // 延迟500ms
+            }
+            
+            log('\n✅ 所有API测试完成!');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+{
+  "groups": [
+    {
+      "name": "trading",
+      "type": "com.trading.config.TradingConfig",
+      "sourceType": "com.trading.config.TradingConfig"
+    }
+  ],
+  "properties": [
+    {
+      "name": "trading.app-id",
+      "type": "java.lang.String",
+      "description": "应用标识",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.auth-code",
+      "type": "java.lang.String",
+      "description": "认证码",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.broker-id",
+      "type": "java.lang.String",
+      "description": "经纪商代码",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.flow-path",
+      "type": "java.lang.String",
+      "description": "流文件路径",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.front-address",
+      "type": "java.lang.String",
+      "description": "交易前置机地址",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.investor-id",
+      "type": "java.lang.String",
+      "description": "投资者代码",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.md-address",
+      "type": "java.lang.String",
+      "description": "行情前置机地址",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.password",
+      "type": "java.lang.String",
+      "description": "密码",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.user-id",
+      "type": "java.lang.String",
+      "description": "用户代码",
+      "sourceType": "com.trading.config.TradingConfig"
+    },
+    {
+      "name": "trading.user-product-info",
+      "type": "java.lang.String",
+      "description": "产品信息",
+      "sourceType": "com.trading.config.TradingConfig"
+    }
+  ],
+  "hints": []
+}
