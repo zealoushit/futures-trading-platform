@@ -31,6 +31,9 @@ public class MarketService extends FemasMarketApiMock {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    private MarketDataCacheService marketDataCacheService;
+
     // 请求ID生成器
     private final AtomicInteger requestIdGenerator = new AtomicInteger(1);
 
@@ -55,7 +58,7 @@ public class MarketService extends FemasMarketApiMock {
                 registerFront(tradingConfig.getMdAddress());
                 // 初始化
                 init();
-                logger.info("行情API初始化成功");
+                logger.info("行情API初始化成功，将自动连接和登录");
             } else {
                 logger.error("行情API创建失败");
             }
@@ -222,6 +225,14 @@ public class MarketService extends FemasMarketApiMock {
         // 通知前端连接状态
         messagingTemplate.convertAndSend("/topic/market/connection",
             ApiResponse.success("行情前置机连接成功", null));
+
+        // 自动登录
+        logger.info("开始自动登录行情服务...");
+        reqUserLogin(
+            tradingConfig.getBrokerId(),
+            tradingConfig.getUserId(),
+            tradingConfig.getPassword()
+        );
     }
 
     @Override
@@ -249,6 +260,9 @@ public class MarketService extends FemasMarketApiMock {
             // 通知前端登录状态
             messagingTemplate.convertAndSend("/topic/market/login",
                 ApiResponse.success("行情登录成功", null));
+
+            // 自动订阅主要合约以缓存行情数据
+            subscribeMainInstruments();
         } else {
             logger.error("行情登录失败: {} - {}", errorId, errorMsg);
             completeAllPendingRequests(ApiResponse.error(errorId, "行情登录失败: " + errorMsg));
@@ -273,58 +287,122 @@ public class MarketService extends FemasMarketApiMock {
                                    double preClosePrice, double openPrice,
                                    double highestPrice, double lowestPrice) {
 
-        // 构造行情数据并推送给前端
-        ConcurrentHashMap<String, Object> marketData = new ConcurrentHashMap<>();
-        marketData.put("instrumentId", instrumentId);
-        marketData.put("updateTime", updateTime);
-        marketData.put("lastPrice", lastPrice);
-        marketData.put("volume", volume);
-        marketData.put("turnover", turnover);
-        marketData.put("openInterest", openInterest);
+        logger.debug("收到行情数据: {} - {}", instrumentId, lastPrice);
 
-        // 五档买卖盘
-        ConcurrentHashMap<String, Object> bidData = new ConcurrentHashMap<>();
-        bidData.put("price1", bidPrice1);
-        bidData.put("volume1", bidVolume1);
-        bidData.put("price2", bidPrice2);
-        bidData.put("volume2", bidVolume2);
-        bidData.put("price3", bidPrice3);
-        bidData.put("volume3", bidVolume3);
-        bidData.put("price4", bidPrice4);
-        bidData.put("volume4", bidVolume4);
-        bidData.put("price5", bidPrice5);
-        bidData.put("volume5", bidVolume5);
+        // 获取交易所ID（从合约代码推断）
+        String exchangeId = getExchangeIdFromInstrument(instrumentId);
 
-        ConcurrentHashMap<String, Object> askData = new ConcurrentHashMap<>();
-        askData.put("price1", askPrice1);
-        askData.put("volume1", askVolume1);
-        askData.put("price2", askPrice2);
-        askData.put("volume2", askVolume2);
-        askData.put("price3", askPrice3);
-        askData.put("volume3", askVolume3);
-        askData.put("price4", askPrice4);
-        askData.put("volume4", askVolume4);
-        askData.put("price5", askPrice5);
-        askData.put("volume5", askVolume5);
+        // 更新缓存
+        marketDataCacheService.updateMarketData(
+            instrumentId, exchangeId, updateTime, lastPrice, volume, turnover, openInterest,
+            bidPrice1, bidVolume1, askPrice1, askVolume1,
+            bidPrice2, bidVolume2, askPrice2, askVolume2,
+            bidPrice3, bidVolume3, askPrice3, askVolume3,
+            bidPrice4, bidVolume4, askPrice4, askVolume4,
+            bidPrice5, bidVolume5, askPrice5, askVolume5,
+            upperLimitPrice, lowerLimitPrice,
+            preClosePrice, openPrice, highestPrice, lowestPrice
+        );
 
-        marketData.put("bid", bidData);
-        marketData.put("ask", askData);
+        // 注意：不再直接推送到前端，由MarketDataPushService统一推送
+        logger.debug("行情数据已更新到缓存: {}", instrumentId);
+    }
 
-        // 价格信息
-        marketData.put("upperLimitPrice", upperLimitPrice);
-        marketData.put("lowerLimitPrice", lowerLimitPrice);
-        marketData.put("preClosePrice", preClosePrice);
-        marketData.put("openPrice", openPrice);
-        marketData.put("highestPrice", highestPrice);
-        marketData.put("lowestPrice", lowestPrice);
+    /**
+     * 自动订阅主要合约
+     */
+    private void subscribeMainInstruments() {
+        logger.info("开始自动订阅主要合约...");
 
-        // 推送到特定合约的主题
-        messagingTemplate.convertAndSend("/topic/market/data/" + instrumentId,
-            ApiResponse.success("行情数据", marketData));
+        // 定义主要合约列表
+        String[] mainInstruments = {
+            "rb2405", "rb2409", "rb2501",  // 螺纹钢
+            "cu2405", "cu2409", "cu2501",  // 铜
+            "au2406", "au2408", "au2412",  // 黄金
+            "ag2406", "ag2408", "ag2412",  // 白银
+            "ni2405", "ni2409", "ni2501",  // 镍
+            "zn2405", "zn2409", "zn2501",  // 锌
+            "al2405", "al2409", "al2501",  // 铝
+            "IF2405", "IF2406", "IF2409",  // 沪深300
+            "IC2405", "IC2406", "IC2409",  // 中证500
+            "IH2405", "IH2406", "IH2409"   // 上证50
+        };
 
-        // 推送到通用行情主题
-        messagingTemplate.convertAndSend("/topic/market/data",
-            ApiResponse.success("行情数据", marketData));
+        // 订阅主要合约
+        super.subscribeMarketData(mainInstruments);
+
+        // 添加到已订阅列表
+        for (String instrument : mainInstruments) {
+            subscribedInstruments.add(instrument);
+        }
+
+        logger.info("已自动订阅 {} 个主要合约", mainInstruments.length);
+    }
+
+    /**
+     * 从合约代码推断交易所ID
+     */
+    private String getExchangeIdFromInstrument(String instrumentId) {
+        if (instrumentId == null || instrumentId.isEmpty()) {
+            return "UNKNOWN";
+        }
+
+        String upperInstrument = instrumentId.toUpperCase();
+
+        // 上海期货交易所 (SHFE)
+        if (upperInstrument.startsWith("CU") || upperInstrument.startsWith("AL") ||
+            upperInstrument.startsWith("ZN") || upperInstrument.startsWith("PB") ||
+            upperInstrument.startsWith("NI") || upperInstrument.startsWith("SN") ||
+            upperInstrument.startsWith("AU") || upperInstrument.startsWith("AG") ||
+            upperInstrument.startsWith("RB") || upperInstrument.startsWith("WR") ||
+            upperInstrument.startsWith("HC") || upperInstrument.startsWith("FU") ||
+            upperInstrument.startsWith("BU") || upperInstrument.startsWith("RU")) {
+            return "SHFE";
+        }
+
+        // 中国金融期货交易所 (CFFEX)
+        if (upperInstrument.startsWith("IF") || upperInstrument.startsWith("IC") ||
+            upperInstrument.startsWith("IH") || upperInstrument.startsWith("T") ||
+            upperInstrument.startsWith("TF") || upperInstrument.startsWith("TS")) {
+            return "CFFEX";
+        }
+
+        // 大连商品交易所 (DCE)
+        if (upperInstrument.startsWith("A") || upperInstrument.startsWith("B") ||
+            upperInstrument.startsWith("C") || upperInstrument.startsWith("CS") ||
+            upperInstrument.startsWith("I") || upperInstrument.startsWith("J") ||
+            upperInstrument.startsWith("JM") || upperInstrument.startsWith("L") ||
+            upperInstrument.startsWith("M") || upperInstrument.startsWith("P") ||
+            upperInstrument.startsWith("PP") || upperInstrument.startsWith("V") ||
+            upperInstrument.startsWith("Y") || upperInstrument.startsWith("JD") ||
+            upperInstrument.startsWith("LH") || upperInstrument.startsWith("EB") ||
+            upperInstrument.startsWith("EG") || upperInstrument.startsWith("RR") ||
+            upperInstrument.startsWith("PG")) {
+            return "DCE";
+        }
+
+        // 郑州商品交易所 (CZCE)
+        if (upperInstrument.startsWith("CF") || upperInstrument.startsWith("CY") ||
+            upperInstrument.startsWith("FG") || upperInstrument.startsWith("JR") ||
+            upperInstrument.startsWith("LR") || upperInstrument.startsWith("MA") ||
+            upperInstrument.startsWith("OI") || upperInstrument.startsWith("PM") ||
+            upperInstrument.startsWith("RI") || upperInstrument.startsWith("RM") ||
+            upperInstrument.startsWith("RS") || upperInstrument.startsWith("SF") ||
+            upperInstrument.startsWith("SM") || upperInstrument.startsWith("SR") ||
+            upperInstrument.startsWith("TA") || upperInstrument.startsWith("WH") ||
+            upperInstrument.startsWith("ZC") || upperInstrument.startsWith("AP") ||
+            upperInstrument.startsWith("CJ") || upperInstrument.startsWith("UR") ||
+            upperInstrument.startsWith("SA") || upperInstrument.startsWith("PF")) {
+            return "CZCE";
+        }
+
+        // 上海国际能源交易中心 (INE)
+        if (upperInstrument.startsWith("SC") || upperInstrument.startsWith("NR") ||
+            upperInstrument.startsWith("LU") || upperInstrument.startsWith("BC")) {
+            return "INE";
+        }
+
+        return "UNKNOWN";
     }
 
     /**

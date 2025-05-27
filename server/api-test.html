@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>交易中台服务 API 测试工具</title>
+    <title>交易中台服务 API 测试工具 (增强版)</title>
     <style>
         * {
             margin: 0;
@@ -304,23 +304,141 @@
             font-style: italic;
             padding: 40px;
         }
+
+        /* 新增样式 */
+        .auth-panel {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .auth-panel .panel-header {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .session-info {
+            background: #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .session-info .session-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .exchange-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .exchange-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .exchange-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .stats-panel {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 5px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #007bff;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .alert {
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 交易中台服务 API 测试工具</h1>
-            <p>基于飞马交易API的Java中台服务接口测试</p>
+            <h1>🚀 交易中台服务 API 测试工具 (增强版)</h1>
+            <p>基于飞马交易API的Java中台服务接口测试 - 支持前端认证、会话管理、交易所订阅</p>
         </div>
 
         <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="frontendAuthStatus"></div>
+                <span>前端认证: <span id="frontendAuthText">未登录</span></span>
+            </div>
             <div class="status-item">
                 <div class="status-dot" id="connectionStatus"></div>
                 <span>交易连接: <span id="connectionText">未连接</span></span>
             </div>
             <div class="status-item">
                 <div class="status-dot" id="loginStatus"></div>
-                <span>登录状态: <span id="loginText">未登录</span></span>
+                <span>交易登录: <span id="loginText">未登录</span></span>
             </div>
             <div class="status-item">
                 <div class="status-dot" id="marketStatus"></div>
@@ -332,6 +450,52 @@
         </div>
 
         <div class="main-content">
+            <!-- 前端认证面板 -->
+            <div class="panel auth-panel">
+                <div class="panel-header">🔐 前端用户认证</div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="username" value="admin" placeholder="输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="password" value="admin123" placeholder="输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>客户端ID (可选)</label>
+                        <input type="text" id="clientId" placeholder="自动生成" readonly>
+                    </div>
+
+                    <button class="btn btn-success" onclick="frontendLogin()">前端登录</button>
+                    <button class="btn btn-danger" onclick="frontendLogout()">前端登出</button>
+                    <button class="btn btn-info" onclick="getSessionInfo()">会话信息</button>
+
+                    <div class="session-info" id="sessionInfo" style="display: none;">
+                        <div class="session-item">
+                            <span>会话ID:</span>
+                            <span id="sessionId">-</span>
+                        </div>
+                        <div class="session-item">
+                            <span>用户名:</span>
+                            <span id="sessionUsername">-</span>
+                        </div>
+                        <div class="session-item">
+                            <span>客户端ID:</span>
+                            <span id="sessionClientId">-</span>
+                        </div>
+                        <div class="session-item">
+                            <span>登录时间:</span>
+                            <span id="sessionLoginTime">-</span>
+                        </div>
+                        <div class="session-item">
+                            <span>最后活跃:</span>
+                            <span id="sessionLastActive">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 配置面板 -->
             <div class="panel">
                 <div class="panel-header">⚙️ 配置管理</div>
@@ -408,6 +572,36 @@
                     <hr style="margin: 15px 0;">
 
                     <div class="form-group">
+                        <label>交易所订阅</label>
+                        <div class="exchange-selector">
+                            <div class="exchange-item">
+                                <input type="checkbox" id="exchange_SHFE" value="SHFE">
+                                <label for="exchange_SHFE">上期所(SHFE)</label>
+                            </div>
+                            <div class="exchange-item">
+                                <input type="checkbox" id="exchange_DCE" value="DCE">
+                                <label for="exchange_DCE">大商所(DCE)</label>
+                            </div>
+                            <div class="exchange-item">
+                                <input type="checkbox" id="exchange_CZCE" value="CZCE">
+                                <label for="exchange_CZCE">郑商所(CZCE)</label>
+                            </div>
+                            <div class="exchange-item">
+                                <input type="checkbox" id="exchange_CFFEX" value="CFFEX">
+                                <label for="exchange_CFFEX">中金所(CFFEX)</label>
+                            </div>
+                            <div class="exchange-item">
+                                <input type="checkbox" id="exchange_INE" value="INE">
+                                <label for="exchange_INE">上能源(INE)</label>
+                            </div>
+                        </div>
+                        <button class="btn btn-info" onclick="subscribeExchanges()">订阅交易所</button>
+                        <button class="btn btn-warning" onclick="unsubscribeExchanges()">退订交易所</button>
+                    </div>
+
+                    <hr style="margin: 15px 0;">
+
+                    <div class="form-group">
                         <label>订阅合约 (多个用逗号分隔)</label>
                         <input type="text" id="subscribeInstruments" value="rb2405,cu2405" placeholder="例如: rb2405,cu2405">
                     </div>
@@ -415,6 +609,7 @@
                     <button class="btn btn-success" onclick="subscribeMarket()">订阅行情</button>
                     <button class="btn btn-danger" onclick="unsubscribeMarket()">退订行情</button>
                     <button class="btn" onclick="clearMarketData()">清空行情</button>
+                    <button class="btn btn-info" onclick="getSubscriptions()">查看订阅</button>
                 </div>
             </div>
 
@@ -427,8 +622,38 @@
                     </button>
                 </div>
                 <div class="panel-body">
+                    <!-- 统计信息 -->
+                    <div class="stats-panel">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalInstruments">0</div>
+                                <div class="stat-label">合约数量</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="activeInstruments">0</div>
+                                <div class="stat-label">活跃合约</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="updateCount">0</div>
+                                <div class="stat-label">更新次数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="lastUpdateTime">-</div>
+                                <div class="stat-label">最后更新</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="subscribedExchanges">0</div>
+                                <div class="stat-label">订阅交易所</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="pushFrequency">500ms</div>
+                                <div class="stat-label">推送频率</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="market-data-grid" id="marketDataGrid">
-                        <div class="no-data">暂无行情数据，请先订阅合约</div>
+                        <div class="no-data">暂无行情数据，请先订阅合约或交易所</div>
                     </div>
                 </div>
             </div>
@@ -455,15 +680,35 @@
         let marketDataUpdateEnabled = true;
         let marketDataHistory = new Map(); // 存储历史价格用于计算涨跌
 
+        // 前端认证相关
+        let frontendSessionId = null;
+        let frontendLoggedIn = false;
+        let clientId = 'WEB_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        // 统计信息
+        let marketDataStats = {
+            totalInstruments: 0,
+            activeInstruments: 0,
+            updateCount: 0,
+            lastUpdateTime: null,
+            subscribedExchanges: new Set()
+        };
+
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             log('🚀 API测试工具已加载');
+
+            // 设置客户端ID
+            document.getElementById('clientId').value = clientId;
+
             log('📡 尝试连接WebSocket...');
             connectWebSocket();
 
             // 定期刷新状态
             setInterval(getStatus, 5000);
+            setInterval(updateStats, 1000);
             getStatus();
+            updateStats();
         });
 
         // 日志函数
@@ -631,6 +876,18 @@
             }
         }
 
+        function updateFrontendAuthStatus(loggedIn) {
+            const dot = document.getElementById('frontendAuthStatus');
+            const text = document.getElementById('frontendAuthText');
+            if (loggedIn) {
+                dot.classList.add('connected');
+                text.textContent = '已登录';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未登录';
+            }
+        }
+
         // 更新行情数据显示
         function updateMarketData(data) {
             if (!marketDataUpdateEnabled) return;
@@ -642,6 +899,13 @@
             const noDataElement = container.querySelector('.no-data');
             if (noDataElement) {
                 noDataElement.remove();
+            }
+
+            // 更新统计信息
+            marketDataStats.updateCount++;
+            marketDataStats.lastUpdateTime = new Date();
+            if (!marketDataHistory.has(instrumentId)) {
+                marketDataStats.totalInstruments++;
             }
 
             // 获取历史价格用于计算涨跌
@@ -874,6 +1138,195 @@
             statusElement.textContent = marketDataUpdateEnabled ? '暂停更新' : '恢复更新';
 
             log(marketDataUpdateEnabled ? '📊 行情更新已恢复' : '⏸️ 行情更新已暂停');
+        }
+
+        // 更新统计信息显示
+        function updateStats() {
+            document.getElementById('totalInstruments').textContent = marketDataStats.totalInstruments;
+            document.getElementById('activeInstruments').textContent = marketDataHistory.size;
+            document.getElementById('updateCount').textContent = marketDataStats.updateCount;
+            document.getElementById('subscribedExchanges').textContent = marketDataStats.subscribedExchanges.size;
+
+            if (marketDataStats.lastUpdateTime) {
+                document.getElementById('lastUpdateTime').textContent =
+                    marketDataStats.lastUpdateTime.toLocaleTimeString();
+            }
+        }
+
+        // 前端认证相关函数
+        async function frontendLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('POST', '/auth/login', {
+                    username: username,
+                    password: password,
+                    clientId: clientId
+                });
+
+                if (result.success) {
+                    frontendSessionId = result.data.sessionId;
+                    frontendLoggedIn = true;
+                    updateFrontendAuthStatus(true);
+
+                    // 显示会话信息
+                    displaySessionInfo(result.data);
+
+                    log('✅ 前端登录成功');
+                } else {
+                    log('❌ 前端登录失败: ' + result.message);
+                }
+            } catch (error) {
+                log('❌ 前端登录请求失败: ' + error.message);
+            }
+        }
+
+        async function frontendLogout() {
+            if (!frontendSessionId) {
+                alert('未登录');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('POST', '/auth/logout', {
+                    sessionId: frontendSessionId
+                });
+
+                frontendSessionId = null;
+                frontendLoggedIn = false;
+                updateFrontendAuthStatus(false);
+
+                // 隐藏会话信息
+                document.getElementById('sessionInfo').style.display = 'none';
+
+                log('✅ 前端登出成功');
+            } catch (error) {
+                log('❌ 前端登出失败: ' + error.message);
+            }
+        }
+
+        async function getSessionInfo() {
+            if (!frontendSessionId) {
+                alert('未登录');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('GET', `/auth/session/${frontendSessionId}`);
+                if (result.success) {
+                    displaySessionInfo(result.data);
+                }
+            } catch (error) {
+                log('❌ 获取会话信息失败: ' + error.message);
+            }
+        }
+
+        function displaySessionInfo(sessionData) {
+            document.getElementById('sessionId').textContent = sessionData.sessionId || '-';
+            document.getElementById('sessionUsername').textContent = sessionData.username || '-';
+            document.getElementById('sessionClientId').textContent = sessionData.clientId || '-';
+            document.getElementById('sessionLoginTime').textContent =
+                sessionData.loginTime ? new Date(sessionData.loginTime).toLocaleString() : '-';
+            document.getElementById('sessionLastActive').textContent =
+                sessionData.lastActiveTime ? new Date(sessionData.lastActiveTime).toLocaleString() : '-';
+
+            document.getElementById('sessionInfo').style.display = 'block';
+        }
+
+        // 交易所订阅相关函数
+        async function subscribeExchanges() {
+            if (!frontendSessionId) {
+                alert('请先进行前端登录');
+                return;
+            }
+
+            const selectedExchanges = [];
+            const checkboxes = document.querySelectorAll('.exchange-item input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                selectedExchanges.push(checkbox.value);
+                marketDataStats.subscribedExchanges.add(checkbox.value);
+            });
+
+            if (selectedExchanges.length === 0) {
+                alert('请选择要订阅的交易所');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('POST', '/auth/subscribe/exchanges', {
+                    sessionId: frontendSessionId,
+                    exchanges: selectedExchanges
+                });
+
+                if (result.success) {
+                    log(`✅ 成功订阅交易所: ${selectedExchanges.join(', ')}`);
+                } else {
+                    log(`❌ 订阅交易所失败: ${result.message}`);
+                }
+            } catch (error) {
+                log('❌ 订阅交易所请求失败: ' + error.message);
+            }
+        }
+
+        async function unsubscribeExchanges() {
+            if (!frontendSessionId) {
+                alert('请先进行前端登录');
+                return;
+            }
+
+            const selectedExchanges = [];
+            const checkboxes = document.querySelectorAll('.exchange-item input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                selectedExchanges.push(checkbox.value);
+                marketDataStats.subscribedExchanges.delete(checkbox.value);
+            });
+
+            if (selectedExchanges.length === 0) {
+                alert('请选择要退订的交易所');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('POST', '/auth/unsubscribe/exchanges', {
+                    sessionId: frontendSessionId,
+                    exchanges: selectedExchanges
+                });
+
+                if (result.success) {
+                    log(`✅ 成功退订交易所: ${selectedExchanges.join(', ')}`);
+                } else {
+                    log(`❌ 退订交易所失败: ${result.message}`);
+                }
+            } catch (error) {
+                log('❌ 退订交易所请求失败: ' + error.message);
+            }
+        }
+
+        async function getSubscriptions() {
+            if (!frontendSessionId) {
+                alert('请先进行前端登录');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('GET', `/auth/subscriptions/${frontendSessionId}`);
+                if (result.success) {
+                    const data = result.data;
+                    log('📋 当前订阅信息:');
+                    log(`  交易所: ${data.exchanges ? data.exchanges.join(', ') : '无'}`);
+                    log(`  合约: ${data.instruments ? data.instruments.join(', ') : '无'}`);
+                } else {
+                    log(`❌ 获取订阅信息失败: ${result.message}`);
+                }
+            } catch (error) {
+                log('❌ 获取订阅信息请求失败: ' + error.message);
+            }
         }
     </script>
 </body>
