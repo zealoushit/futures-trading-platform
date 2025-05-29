@@ -9,10 +9,7 @@
     "electron:build": "vue-cli-service electron:build",
     "electron:serve": "vue-cli-service electron:serve",
     "postinstall": "electron-builder install-app-deps",
-    "postuninstall": "electron-builder install-app-deps",
-    "download:deps": "node download-dependencies.js",
-    "setup:mirrors": "npm config set registry https://registry.npmmirror.com/ && npm config set electron_mirror https://npmmirror.com/mirrors/electron/",
-    "install:offline": "npm install --prefer-offline --no-audit"
+    "postuninstall": "electron-builder install-app-deps"
   },
   "main": "background.js",
   "dependencies": {
